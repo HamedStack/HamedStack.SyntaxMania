@@ -89,7 +89,7 @@ public abstract class LexerBase<TToken> where TToken : Enum
         return ch.ToString().IsRegexMatch(re);
     }
 
-    protected bool IsMatch(char ch)
+    protected bool PeekAndMatch(char ch)
     {
         if (!IsEndOfFile())
         {
@@ -114,37 +114,15 @@ public abstract class LexerBase<TToken> where TToken : Enum
         return Position < _input.Length ? _input[Position] : EndOfFile;
     }
 
-    protected char[] Peek(int lookahead)
+    protected char Peek(int offset)
     {
-        if (lookahead < 1)
+        if (offset < 0)
         {
-            throw new Exception($"'{nameof(lookahead)}' should be greater than 0.");
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset cannot be negative.");
         }
-        var list = new List<char>();
-        for (var i = 0; i < lookahead; i++)
-        {
-            var pos = Position + i;
-            if (pos < _input.Length)
-            {
-                list.Add(_input[pos]);
-            }
-            else
-            {
-                list.Add(EndOfFile);
-                break;
-            }
-        }
-        return list.ToArray();
-    }
 
-    protected string PeekAsString()
-    {
-        return Peek().ToString();
-    }
-
-    protected string PeekAsString(int lookahead)
-    {
-        return new string(Peek(lookahead));
+        var index = Position + offset;
+        return index < _input.Length ? _input[index] : EndOfFile;
     }
 
     // Next
@@ -171,7 +149,7 @@ public abstract class LexerBase<TToken> where TToken : Enum
         return value;
     }
 
-    protected bool Read(char c, bool ignoreCase = false)
+    protected bool ReadAndMatch(char c, bool ignoreCase = false)
     {
         var value = Peek();
 
@@ -186,48 +164,6 @@ public abstract class LexerBase<TToken> where TToken : Enum
         Read();
         return true;
 
-    }
-
-    protected char[] Read(int lookahead)
-    {
-        if (lookahead < 1)
-        {
-            throw new Exception($"'{nameof(lookahead)}' should be greater than 0.");
-        }
-        var list = new List<char>();
-        for (var i = 0; i < lookahead; i++)
-        {
-            var value = Peek();
-            Position++;
-            Value = value;
-            list.Add(value);
-
-            if (value == EndOfFile)
-            {
-                break;
-            }
-
-            if (value == '\n')
-            {
-                Line++;
-                Column = 0;
-            }
-            else
-            {
-                Column++;
-            }
-        }
-        return list.ToArray();
-    }
-
-    protected string ReadAsString()
-    {
-        return Read().ToString();
-    }
-
-    protected string ReadAsString(int lookahead)
-    {
-        return new string(Read(lookahead));
     }
 
     protected string ReadEscaped(char ch, char indicator)
@@ -267,12 +203,12 @@ public abstract class LexerBase<TToken> where TToken : Enum
         return result;
     }
 
-    protected virtual string ReadNumber(out bool isFloat)
+    protected virtual string ReadNumber(out bool isFloat, char floatIndicator = '.')
     {
         var hasDot = false;
         var result = ReadWhile(ch =>
         {
-            if (ch != '.') return char.IsDigit(ch);
+            if (ch != floatIndicator) return char.IsDigit(ch);
             if (hasDot) return false;
             hasDot = true;
             return true;
